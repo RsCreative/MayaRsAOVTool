@@ -3,6 +3,10 @@
 # 	- initial code creation
 # v002 03/02/22 (Raj Sandhu)
 #   - fixed AOVs being placed in wrong channel
+# v003 03/02/22 (Raj Sandhu)
+#     - fixed that no all AOV where being created
+#     - fixed the issue where node would added extra inputs
+#     - fixed naming so that empty aov where not being created
 
 
 import maya.cmds as cmds
@@ -54,40 +58,60 @@ def createAovName(claovname, aovrendername):
 
 
 # Creates a dictionary of index and connections in AOV input list
+def checkAOVexist():
+    nodelist = cmds.ls(type="RedshiftStoreColorToAOV")
+    aovnode = {}
+    dex = 0
+    for node in nodelist:
+        aovnamelist = cmds.listAttr('{node}.aov_input_list'.format(node=node), m=True, st="name")
+
+        for i, connection in enumerate(aovnamelist):
+            name = cmds.getAttr("{node}.{connection}".format(node=node, connection=connection))
+            if name not in aovnode.values():
+                aovnode.update({dex: name})
+                dex = dex + 1
+    return aovnode
+
+
 def getConnections(node):
+    global index
     aovnamelist = cmds.listAttr('{node}.aov_input_list'.format(node=node), m=True, st="name")
     connect = {}
+    aovnode = checkAOVexist()
 
-    for i in range(len(aovnamelist)):
-        index = i
-        name = cmds.getAttr("{node}.aov_input_list[{i}].name".format(node=node, i=i))
-        connect.update({index: name})
+    for i, connection in enumerate(aovnamelist):
+        name = cmds.getAttr("{node}.{connection}".format(node=node, connection=connection))
+        if name != "None":
+            if name in aovnode.values():
+                aovdex = aovnode.keys()[aovnode.values().index(name)]
+                connect.update({aovdex: connection})
+
+    for key, value in connect.items():
+        print (int(key), str(value))
 
     return connect
 
 
 # Updates AOV list and connects AOV to hypershade node
 def createAOV(nodes):
-    setColorAOVNodeList(nodes)
-    nodelist = getColorAOVNodeList()
-    for node in nodelist:
+    for node in nodes:
+        print ''
         print("[INFO]" + node)
         checkLookName(node)
         connections = getConnections(node)
-        for i, connection in connections.items():
-            print("[INFO]" + str(connection))
-            if connection == "None":
-                continue
-            elif i == 0:
+        for key, value in connections.items():
+            if str(value) == "aov_input_list[0].name":
                 createAovName("rsAov_UvObjp", "U_UVOBJP_uvobjprgb")
-                cmds.setAttr("{node}.aov_input_list[{i}].name".format(node=node, i=i),
+                cmds.setAttr("{node}.aov_input_list[0].name".format(node=node),
                              "U_UVOBJP_uvobjprgb", type="string")
-                continue
+                print "[AOV Name]rsAov_UvObjp"
+                print "[AOV Display]U_UVOBJP_uvobjprgb"
+                print ("[Connect]{i}".format(i=value))
             else:
-                createAovName("rsAOV_RGBAOV{i}".format(i=i + 1), "U_RGBAOV_rbgtoaov{i}".format(i=i + 1))
-                cmds.setAttr("{node}.aov_input_list[{i}].name".format(node=node, i=i),
-                             "U_RGBAOV_rbgtoaov{i}".format(i=i + 1), type="string")
-                continue
+                createAovName("rsAOV_RGBAOV{key}".format(key=key), "U_RGBAOV_rbgtoaov{key}".format(key=key))
+                cmds.setAttr("{node}.{value}".format(node=node, value=str(value)),
+                             "U_RGBAOV_rbgtoaov{key}".format(key=key), type="string")
+
 
 
 createAOV(color_to_aov_list)
