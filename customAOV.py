@@ -7,7 +7,8 @@
 #     - fixed that no all AOV where being created
 #     - fixed the issue where node would added extra inputs
 #     - fixed naming so that empty aov where not being created
-
+# v004 15/02/22 (Raj Sandhu)
+#   -Removed unsed code
 
 import maya.cmds as cmds
 import maya.mel as mel
@@ -112,12 +113,3 @@ def createAOV(nodes):
                 cmds.setAttr("{node}.{value}".format(node=node, value=str(value)),
                              "U_RGBAOV_rbgtoaov{key}".format(key=key), type="string")
 
-
-
-createAOV(color_to_aov_list)
-
-print("[INFO]Reseting UI")
-mel.eval("unifiedRenderGlobalsWindow;")
-mel.eval("deleteUI unifiedRenderGlobalsWindow;")
-mel.eval("unifiedRenderGlobalsWindow;")
-print("[INFO]UI Rest")

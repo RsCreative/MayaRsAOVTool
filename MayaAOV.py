@@ -11,82 +11,112 @@
 #   - adding a Render Layer check to see if any were created without the cryto override collection
 #   - added custom AOV UTL_AO creation
 # v006
-#   - adding motion vector AOV option v008 - fixing issue when script is run but crypto/AO/motion vectors already exist
+#   - adding motion vector AOV option
+# v008
+#   - fixing issue when script is run but crypto/AO/motion vectors already exist
+# v011 15/02/22 (Raj Sandhu)
+#   - Refactored code to use functions
+#   - Importing in Color to AOV script to as one tool
+#   - Added UI
+
 
 import maya.cmds as cmds
 import maya.app.renderSetup.model.renderSetup as renderSetup
 import maya.app.renderSetup.model.override as override
 import maya.api.OpenMaya as OpenMaya
 import maya.mel as mel
-import customAOV
-from customAOV import *
 
-aov_list = cmds.ls(type="RedshiftAOV")
-gi = int()
-reflect = int()
-refract = int()
-sss = int()
-caustic = None
-emission = int()
-translu = int()
-volume = int()
-color_to_aov_list = cmds.ls(type="RedshiftStoreColorToAOV")
+aov_list = []
+color_to_aov_list = []
+name_space_list = []
+rgb_to_color_list = []
 
 
-def materialCheck(aov_gi, aov_reflect, aov_refract, aov_sss, aov_caustic, aov_emission, aov_translu, aov_volume):
-    MatCheck = cmds.ls(type=(
-        "RedshiftMaterial", "RedshiftCarPaint", "RedshiftHair", "RedshiftSubSurfaceScatter", "RedshiftArchitectural",
-        "RedshiftIncandescent", "RedshiftSkin", "RedshiftVolume", "RedshiftVolumeScattering"))
-    LitCheck = cmds.ls(type="RedshiftPhysicalLight")
-    gi_01 = int()
-    gi_02 = int()
-    # Check for GI
-    gi_01 += cmds.getAttr("redshiftOptions.primaryGIEngine")
-    gi_02 += cmds.getAttr("redshiftOptions.secondaryGIEngine")
-    aov_gi = gi_01 + gi_02
-    # Check for Caustics
-    aov_caustic = cmds.getAttr("redshiftOptions.photonCausticsEnable")
+def setColor2Aov():
+    global color_to_aov_list
+    color_to_aov_list = cmds.ls(type="RedshiftStoreColorToAOV")
 
-    for i in MatCheck:
-        if cmds.nodeType(i) == "RedshiftMaterial":
-            aov_reflect += cmds.getAttr(i + ".refl_weight")
-            aov_reflect += cmds.getAttr(i + ".coat_weight")
-            aov_refract += cmds.getAttr(i + ".refr_weight")
-            aov_refract += cmds.getAttr(i + ".ss_amount")
-            aov_sss += cmds.getAttr(i + ".ms_amount")
-            aov_translu += cmds.getAttr(i + ".transl_weight")
-            aov_emission += cmds.getAttr(i + ".emission_weight")
-        if cmds.nodeType(i) == "RedshiftHair":
-            aov_reflect += cmds.getAttr(i + ".irefl_weight")
-            aov_reflect += cmds.getAttr(i + ".trans_weight")
-            aov_reflect += cmds.getAttr(i + ".refl_weight")
-        if cmds.nodeType(i) == "RedshiftArchitectural":
-            aov_reflect += cmds.getAttr(i + ".reflectivity")
-            aov_reflect += cmds.getAttr(i + ".refl_base")
-            aov_refract += cmds.getAttr(i + ".transparency")
-            aov_translu += cmds.getAttr(i + ".refr_trans_weight")
-        if cmds.nodeType(i) == "RedShiftCarPaint":
-            aov_reflect += 1
-        if cmds.nodeType(i) == "RedshiftSubSurfaceScatter":
-            aov_sss += 1
-        if cmds.nodeType(i) == "RedshiftSkin":
-            aov_sss += 1
-        if cmds.nodeType(i) == "RedshiftVolume":
-            aov_volume += 1
-        if cmds.nodeType(i) == "RedshiftVolumeScattering":
-            aov_volume += 1
-        if cmds.nodeType(i) == "RedshiftIncandescent":
-            aov_emission += 1
-        else:
-            continue
 
-    for lit in LitCheck:
-        if cmds.getAttr(lit + ".areaVisibleInRender"):
-            aov_emission += 1
+def getColor2Aov():
+    global color_to_aov_list
+    aovs = color_to_aov_list
+    return aovs
+
+
+def setAovs():
+    global aov_list
+    aov_list = cmds.ls(type="RedshiftAOV")
+
+
+def getAovs():
+    global aov_list
+    aovs = aov_list
+    return aovs
 
 
 def setAovList(aovs):
-    # List of AOVs in the scene
+    MatCheck = cmds.ls(type=(
+    "RedshiftMaterial", "RedshiftCarPaint", "RedshiftHair", "RedshiftSubSurfaceScatter", "RedshiftArchitectural",
+    "RedshiftIncandescent", "RedshiftSkin", "RedshiftVolume", "RedshiftVolumeScattering"))
+    # print(MatCheck)
+
+    gi = int()
+    gi_01 = int()
+    gi_02 = int()
+    reflect = int()
+    refract = int()
+    sss = int()
+    caustic = None
+    emission = int()
+    translu = int()
+    volume = int()
+
+    # Check for GI
+    gi_01 += cmds.getAttr("redshiftOptions.primaryGIEngine")
+    gi_02 += cmds.getAttr("redshiftOptions.secondaryGIEngine")
+    gi = gi_01 + gi_02
+
+    # Check for Caustics
+    caustic = cmds.getAttr("redshiftOptions.photonCausticsEnable")
+
+    for i in MatCheck:
+        if cmds.nodeType(i) == "RedshiftMaterial":
+            reflect += cmds.getAttr(i + ".refl_weight")
+            reflect += cmds.getAttr(i + ".coat_weight")
+            refract += cmds.getAttr(i + ".refr_weight")
+            refract += cmds.getAttr(i + ".ss_amount")
+            sss += cmds.getAttr(i + ".ms_amount")
+            translu += cmds.getAttr(i + ".transl_weight")
+            emission += cmds.getAttr(i + ".emission_weight")
+        if cmds.nodeType(i) == "RedshiftHair":
+            reflect += cmds.getAttr(i + ".irefl_weight")
+            reflect += cmds.getAttr(i + ".trans_weight")
+            reflect += cmds.getAttr(i + ".refl_weight")
+        if cmds.nodeType(i) == "RedshiftArchitectural":
+            reflect += cmds.getAttr(i + ".reflectivity")
+            reflect += cmds.getAttr(i + ".refl_base")
+            refract += cmds.getAttr(i + ".transparency")
+            translu += cmds.getAttr(i + ".refr_trans_weight")
+        if cmds.nodeType(i) == "RedShiftCarPaint":
+            reflect += 1
+        if cmds.nodeType(i) == "RedshiftSubSurfaceScatter":
+            sss += 1
+        if cmds.nodeType(i) == "RedshiftSkin":
+            sss += 1
+        if cmds.nodeType(i) == "RedshiftVolume":
+            volume += 1
+        if cmds.nodeType(i) == "RedshiftVolumeScattering":
+            volume += 1
+        if cmds.nodeType(i) == "RedshiftIncandescent":
+            emission += 1
+        else:
+            continue
+
+    LitCheck = cmds.ls(type="RedshiftPhysicalLight")
+
+    for lit in LitCheck:
+        if cmds.getAttr(lit + ".areaVisibleInRender") == True:
+            emission += 1
 
     if "rsAov_BumpNormals" not in aovs:
         cmds.rsCreateAov(name="rsAov_BumpNormals", type="Bump Normals")
@@ -151,107 +181,83 @@ def setAovList(aovs):
 
 
 def setCryptoMat(aovs):
-    if "rsAov_CryptoMat" not in aovs or "rsAov_CryptoObj" not in aovs:
-        title = "Create Cryptomatte AOV?"
-        message = "Create Cryptomatte AOV?"
-        button1 = "Yes"
-        button2 = "No"
-        crypto = cmds.confirmDialog(title=title, message=message, button=[button1, button2], cancelButton=button2,
-                                    dismissString=button2)
+    if "rsAov_CryptoMat" not in aovs:
+        cmds.rsCreateAov(name="rsAov_CryptoMat", type="Cryptomatte")
+        cmds.setAttr("rsAov_CryptoMat.name", "U_CRYMAT_matte", type="string")
+        cmds.setAttr("rsAov_CryptoMat.idType", 1)
+        cmds.setAttr("rsAov_CryptoMat.cryptomatteDepth", 10)
+        cmds.setAttr("rsAov_CryptoMat.filePrefix", "<BeautyPath>_<RenderPass>/<BeautyFile>_<RenderPass>",
+                     type="string")
+    if "rsAov_CryptoObj" not in aovs:
+        cmds.rsCreateAov(name="rsAov_CryptoObj", type="Cryptomatte")
+        cmds.setAttr("rsAov_CryptoObj.name", "U_CRYOBJ_matte", type="string")
+        cmds.setAttr("rsAov_CryptoObj.idType", 0)
+        cmds.setAttr("rsAov_CryptoObj.cryptomatteDepth", 10)
+        cmds.setAttr("rsAov_CryptoObj.filePrefix", "<BeautyPath>_<RenderPass>/<BeautyFile>_<RenderPass>",
+                     type="string")
 
-        if crypto == "Yes":
-            if "rsAov_CryptoMat" not in aovs:
-                cmds.rsCreateAov(name="rsAov_CryptoMat", type="Cryptomatte")
-                cmds.setAttr("rsAov_CryptoMat.name", "U_CRYMAT_matte", type="string")
-                cmds.setAttr("rsAov_CryptoMat.idType", 1)
-                cmds.setAttr("rsAov_CryptoMat.cryptomatteDepth", 10)
-                cmds.setAttr("rsAov_CryptoMat.filePrefix", "<BeautyPath>_<RenderPass>/<BeautyFile>_<RenderPass>",
-                             type="string")
-            if "rsAov_CryptoObj" not in aovs:
-                cmds.rsCreateAov(name="rsAov_CryptoObj", type="Cryptomatte")
-                cmds.setAttr("rsAov_CryptoObj.name", "U_CRYOBJ_matte", type="string")
-                cmds.setAttr("rsAov_CryptoObj.idType", 0)
-                cmds.setAttr("rsAov_CryptoObj.cryptomatteDepth", 10)
-                cmds.setAttr("rsAov_CryptoObj.filePrefix", "<BeautyPath>_<RenderPass>/<BeautyFile>_<RenderPass>",
-                             type="string")
+    # checking the existence of a "crypto_or" collection in current render layers
+    rlsall = cmds.ls(type="renderSetupLayer")
+    rlstoexclude = []
+    rlstofix = []
 
-        # checking the existence of a "crypto_or" collection in current render layers
-        rlsall = cmds.ls(type="renderSetupLayer")
-        rlstoexclude = []
-        rlstofix = []
+    # pull all "collections" with "*_crypto_off*" in the name
+    cryptoOR = cmds.ls("*_crypto_off*", type="collection")
+    for node in cryptoOR:
+        # pull all connections to the node "collection" that is a "renderSetupLayer"
+        nodeConnections = (cmds.listConnections(node, type="renderSetupLayer"))
+        for nodeRL in nodeConnections:
+            if nodeRL not in rlstoexclude:
+                # add RLs to the exclude list
+                rlstoexclude.append(nodeRL)
+    print rlstoexclude
+    # pull check all RLs against the exclude list to build the list of RLs that need the crypto override
+    for renderlayer in rlsall:
+        if renderlayer not in rlstoexclude:
+            rlstofix.append(renderlayer)
 
-        # pull all "collections" with "*_crypto_off*" in the name
-        cryptoOR = cmds.ls("*_crypto_off*", type="collection")
-        for node in cryptoOR:
-            # pull all connections to the node "collection" that is a "renderSetupLayer"
-            nodeConnections = (cmds.listConnections(node, type="renderSetupLayer"))
-            for nodeRL in nodeConnections:
-                if nodeRL not in rlstoexclude:
-                    # add RLs to the exclude list
-                    rlstoexclude.append(nodeRL)
-        print rlstoexclude
-        # pull check all RLs against the exclude list to build the list of RLs that need the crypto override
-        for renderlayer in rlsall:
-            if renderlayer not in rlstoexclude:
-                rlstofix.append(renderlayer)
-
-        print rlstofix
-        # add RL overrides to all RLs in "rlstofix"
-        for rlname in rlstofix:
-            rs = renderSetup.instance()
-            rl = rs.getRenderLayer(rlname)
-            c102 = rl.createCollection(rlname + '_crypto_off')
-            cmds.setAttr(c102.name() + 'Selector.typeFilter', 8)
-            c102.getSelector().setCustomFilterValue('RedshiftAOV')
-            cmds.setAttr(c102.name() + "Selector.staticSelection", "rsAov_CryptoMat rsAov_CryptoObj", type="string")
-            or102 = c102.createOverride(rlname + '_crypto_off', OpenMaya.MTypeId(0x58000378))
-            or102.setAttributeName("enabled")
-            or102.finalize("enabled")
-            cmds.setAttr(or102.name() + ".attrValue", 0)
-            cmds.setAttr(c102.name() + '.selfEnabled', 0)
+    print rlstofix
+    # add RL overrides to all RLs in "rlstofix"
+    for rlname in rlstofix:
+        rs = renderSetup.instance()
+        rl = rs.getRenderLayer(rlname)
+        c102 = rl.createCollection(rlname + '_crypto_off')
+        cmds.setAttr(c102.name() + 'Selector.typeFilter', 8)
+        c102.getSelector().setCustomFilterValue('RedshiftAOV')
+        cmds.setAttr(c102.name() + "Selector.staticSelection", "rsAov_CryptoMat rsAov_CryptoObj", type="string")
+        or102 = c102.createOverride(rlname + '_crypto_off', OpenMaya.MTypeId(0x58000378))
+        or102.setAttributeName("enabled")
+        or102.finalize("enabled")
+        cmds.setAttr(or102.name() + ".attrValue", 0)
+        cmds.setAttr(c102.name() + '.selfEnabled', 0)
 
 
 def setAO(aovs):
     # prompt user, create Ambient Occlussion AOV and shader
     if "rsAov_AO" not in aovs or cmds.objExists("aov_ao_shd") is False or cmds.objExists("aov_ao_mat") is False:
-        title = "Create AO AOV?"
-        message = "Create Ambient Occlussion AOV?"
-        button1 = "Yes"
-        button2 = "No"
-        aoAOV = cmds.confirmDialog(title=title, message=message, button=[button1, button2], cancelButton=button2,
-                                   dismissString=button2)
 
-        if aoAOV == "Yes":
-            if "rsAov_AO" not in aovs:
-                cmds.rsCreateAov(name="rsAov_AO", type="Custom")
-                cmds.setAttr("rsAov_AO.name", "U_AMBOCC_ao", type="string")
-            if not cmds.objExists("aov_ao_shd"):
-                cmds.shadingNode("RedshiftAmbientOcclusion", asTexture=True, name="aov_ao_shd")
-            if not cmds.objExists("aov_ao_mat"):
-                cmds.shadingNode("RedshiftIncandescent", asShader=True, name="aov_ao_mat")
+        if "rsAov_AO" not in aovs:
+            cmds.rsCreateAov(name="rsAov_AO", type="Custom")
+            cmds.setAttr("rsAov_AO.name", "U_AMBOCC_ao", type="string")
+        if not cmds.objExists("aov_ao_shd"):
+            cmds.shadingNode("RedshiftAmbientOcclusion", asTexture=True, name="aov_ao_shd")
+        if not cmds.objExists("aov_ao_mat"):
+            cmds.shadingNode("RedshiftIncandescent", asShader=True, name="aov_ao_mat")
 
-            if not cmds.isConnected("aov_ao_shd.outColor", "aov_ao_mat.color"):
-                cmds.connectAttr("aov_ao_shd.outColor", "aov_ao_mat.color")
-            if not cmds.isConnected("aov_ao_shd.outColor", "rsAov_AO.defaultShader"):
-                cmds.connectAttr("aov_ao_shd.outColor", "rsAov_AO.defaultShader")
+        if not cmds.isConnected("aov_ao_shd.outColor", "aov_ao_mat.color"):
+            cmds.connectAttr("aov_ao_shd.outColor", "aov_ao_mat.color")
+        if not cmds.isConnected("aov_ao_shd.outColor", "rsAov_AO.defaultShader"):
+            cmds.connectAttr("aov_ao_shd.outColor", "rsAov_AO.defaultShader")
 
 
 def setMoVector(aovs):
     # prompt user, create motion vector AOV
     if "rsAov_MoVector" not in aovs:
-        title = "Create Motion Vector AOV?"
-        message = "Create Motion Vector AOV?"
-        button1 = "Yes"
-        button2 = "No"
-        mvAOV = cmds.confirmDialog(title=title, message=message, button=[button1, button2], cancelButton=button2,
-                                   dismissString=button2)
-
-        if mvAOV == "Yes":
-            if "rsAov_MoVector" not in aovs:
-                cmds.rsCreateAov(name="rsAov_MoVector", type="Motion Vectors")
-                cmds.setAttr("rsAov_MoVector.name", "U_MOVECT_motionVectors", type="string")
-                cmds.setAttr("rsAov_MoVector.outputRawVectors", 1)
-                cmds.setAttr("redshiftOptions.motionBlurEnable", 0)
+        if "rsAov_MoVector" not in aovs:
+            cmds.rsCreateAov(name="rsAov_MoVector", type="Motion Vectors")
+            cmds.setAttr("rsAov_MoVector.name", "U_MOVECT_motionVectors", type="string")
+            cmds.setAttr("rsAov_MoVector.outputRawVectors", 1)
+            cmds.setAttr("redshiftOptions.motionBlurEnable", 0)
 
 
 def resetAOVWindow():
@@ -262,16 +268,182 @@ def resetAOVWindow():
     mel.eval("unifiedRenderGlobalsWindow;")
     print("[INFO]UI Rest")
 
+# Check if look is on pipe
+def checkLookName(node):
+    if ":" not in node:
+        check = False
+        print("[ERROR]{node} is not on pipe".format(node=node))
+        cmds.error("[ERROR]{node} is not on pipe".format(node=node))
+    else:
+        check = True
+
+    return check
+
+
+# Create list of color to AOV nodes with proper look names
+def setColorAOVNodeList(nodelist):
+    if nodelist is not None and len(nodelist) != 0:
+        for node in nodelist:
+            if checkLookName(node):
+                rgb_to_color_list.append(node)
+
+
+# Get AOV node list
+def getColorAOVNodeList():
+    global rgb_to_color_list
+    nodelist = rgb_to_color_list
+    return nodelist
+
+
+# Create AOV for render setting list
+def createAovName(claovname, aovrendername):
+    # check if AOV name exists
+    if not cmds.objExists(claovname):
+        # Create node name for AOV
+        cmds.rsCreateAov(name=claovname, type="Custom")
+        # Create render name for AOV
+        cmds.setAttr("{claovname}.name".format(claovname=claovname), aovrendername, type="string")
+        # Logging
+        print("[INFO]Setting Connection for {claovname}".format(claovname=claovname))
+        # connect look to AOV
+
+
+# Creates a dictionary of index and connections in AOV input list
+def checkAOVexist():
+    nodelist = cmds.ls(type="RedshiftStoreColorToAOV")
+    aovnode = {}
+    dex = 0
+    for node in nodelist:
+        aovnamelist = cmds.listAttr('{node}.aov_input_list'.format(node=node), m=True, st="name")
+
+        for i, connection in enumerate(aovnamelist):
+            name = cmds.getAttr("{node}.{connection}".format(node=node, connection=connection))
+            if name not in aovnode.values():
+                aovnode.update({dex: name})
+                dex = dex + 1
+    return aovnode
+
+
+def getConnections(node):
+    global index
+    aovnamelist = cmds.listAttr('{node}.aov_input_list'.format(node=node), m=True, st="name")
+    connect = {}
+    aovnode = checkAOVexist()
+
+    for i, connection in enumerate(aovnamelist):
+        name = cmds.getAttr("{node}.{connection}".format(node=node, connection=connection))
+        if name != "None":
+            if name in aovnode.values():
+                aovdex = aovnode.keys()[aovnode.values().index(name)]
+                connect.update({aovdex: connection})
+
+    for key, value in connect.items():
+        print (int(key), str(value))
+
+    return connect
+
+
+# Updates AOV list and connects AOV to hypershade node
+def createAOV(nodes):
+    for node in nodes:
+        print ''
+        print("[INFO]" + node)
+        checkLookName(node)
+        connections = getConnections(node)
+        for key, value in connections.items():
+            if str(value) == "aov_input_list[0].name":
+                createAovName("rsAov_UvObjp", "U_UVOBJP_uvobjprgb")
+                cmds.setAttr("{node}.aov_input_list[0].name".format(node=node),
+                             "U_UVOBJP_uvobjprgb", type="string")
+                print "[AOV Name]rsAov_UvObjp"
+                print "[AOV Display]U_UVOBJP_uvobjprgb"
+                print ("[Connect]{i}".format(i=value))
+            else:
+                createAovName("rsAOV_RGBAOV{key}".format(key=key), "U_RGBAOV_rbgtoaov{key}".format(key=key))
+                cmds.setAttr("{node}.{value}".format(node=node, value=str(value)),
+                             "U_RGBAOV_rbgtoaov{key}".format(key=key), type="string")
+
+
+def btn_setAOVs(*args):
+    setAovs()
+    aovs = getAovs()
+    setAovList(aovs)
+    resetAOVWindow()
+
+
+def btn_setAO(*args):
+    setAovs()
+    aovs = getAovs()
+    setAO(aovs)
+    resetAOVWindow()
+
+
+def btn_setCrypto(*args):
+    setAovs()
+    aovs = getAovs()
+    setCryptoMat(aovs)
+    resetAOVWindow()
+
+
+def btn_setMoVec(*args):
+    setAovs()
+    aovs = getAovs()
+    setCryptoMat(aovs)
+    resetAOVWindow()
+
+
+def btn_setColor2AOV(*args):
+    setColor2Aov()
+    aovs = getColor2Aov()
+    createAOV(aovs)
+    resetAOVWindow()
+
+
+def ui():
+    if cmds.window('AOV Generator', ex=True):
+        cmds.deleteUI('AOV Generator')
+
+    window = cmds.window(title="AOV Generator", rtf=True)
+    layout_MainUI = cmds.rowColumnLayout(numberOfColumns=1, cs=[1, 2], rs=[1, 10])
+    spacer = cmds.text(p=layout_MainUI, label='')
+    label_title = cmds.text(p=layout_MainUI, fn='boldLabelFont', label="Maya AOV Creation", align='left')
+    spacer = cmds.text(p=layout_MainUI, label='')
+
+    layout_AddAOV = cmds.rowLayout(parent=layout_MainUI, numberOfColumns=2, columnWidth2=(150, 150))
+
+    label_addAov = cmds.text(p=layout_AddAOV, label="Set Standard AOVs", align='right')
+    btn_addAov = cmds.button("createAOV", p=layout_AddAOV, l=" Create AOVs", c=btn_setAOVs,
+                             aop=False, align='center', w=150)
+
+    layout_AddCrypto = cmds.rowLayout(parent=layout_MainUI, numberOfColumns=2, columnWidth2=(150, 150))
+
+    label_addCrypto = cmds.text(p=layout_AddCrypto, label="Set Crypto Matte and OBJ", align='right')
+    btn_addCrypto = cmds.button("createCrypto", p=layout_AddCrypto, l="Create Crypto", c=btn_setCrypto,
+                                aop=False, align='center', w=150)
+
+    layout_AddAO = cmds.rowLayout(parent=layout_MainUI, numberOfColumns=2, columnWidth2=(150, 150))
+
+    label_addAo = cmds.text(p=layout_AddAO, label="Set AO AOV", align='right')
+    btn_addAo = cmds.button("createAO", p=layout_AddAO, l="Create AO", c=btn_setAO,
+                            aop=False, align='center', w=150)
+
+    layout_AddMoVec = cmds.rowLayout(p=layout_MainUI, numberOfColumns=2, columnWidth2=(150, 150))
+    label_addMoVec = cmds.text(p=layout_AddMoVec, label="Set Motion Vector", align='right')
+    btn_addMoVec = cmds.button("createMoVec", p=layout_AddMoVec, l="Create MoVec", c=btn_setMoVec,
+                               aop=False, align='center', w=150)
+
+    layout_addc2aov = cmds.rowLayout(p=layout_MainUI, numberOfColumns=2, columnWidth2=(150, 150))
+    label_addc2aov = cmds.text(p=layout_addc2aov, label='Set Color To AOV', align='right')
+    btn_addColor2aov = cmds.button("creatC2A", p=layout_addc2aov, l="Create Color To AOV", c=btn_setColor2AOV,
+                                   aop=False, align='center', w=150)
+    spacer = cmds.text(p=layout_MainUI, label='')
+
+
+    cmds.showWindow(window)
+
 
 def run():
-    materialCheck(gi, reflect, refract, sss, caustic, emission, translu, volume)
-    setAovList(aov_list)
-    # UV RGB position custom AOV creation driven by "colorToAOV" node presence in the scene file
-    customAOV.createAOV(color_to_aov_list)
-    setCryptoMat(aov_list)
-    setAO(aov_list)
-    setMoVector(aov_list)
-    resetAOVWindow()
+    ui()
 
 
 run()
